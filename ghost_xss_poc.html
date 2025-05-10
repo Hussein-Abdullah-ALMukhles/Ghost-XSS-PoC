@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ghost XSS Auto-Execution PoC</title>
+</head>
+<body>
+  <h2>Ghost XSS PoC – Auto Execution via URL</h2>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const payload = params.get('xss');
+    if (payload) {
+      const el = document.createElement("div");
+      el.innerHTML = payload;
+      document.body.appendChild(el);
+    }
+  </script>
+</body>
+</html>
