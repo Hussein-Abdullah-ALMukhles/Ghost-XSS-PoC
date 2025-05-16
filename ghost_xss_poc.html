@@ -2,18 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ghost XSS Auto-Execution PoC</title>
+  <title>GhostRecon v8 – DOM Sink Deep Analyzer</title>
 </head>
 <body>
-  <h2>Ghost XSS PoC – Auto Execution via URL</h2>
+  <h2>🧪 GhostRecon v8 – DOM Sink Deep Analyzer</h2>
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const payload = params.get('xss');
-    if (payload) {
-      const el = document.createElement("div");
-      el.innerHTML = payload;
-      document.body.appendChild(el);
-    }
+    (async () => {
+      console.log("🔍 GhostRecon v8 – DOM Sink Deep Analyzer Started...");
+
+      const reflectedParams = new URLSearchParams(location.search);
+      const tl = reflectedParams.get("tl");
+      const sl = reflectedParams.get("sl");
+      const op = reflectedParams.get("op");
+
+      const targets = [tl, sl, op].filter(Boolean);
+      const dangerousSinks = ["innerHTML", "outerHTML", "insertAdjacentHTML", "eval", "setTimeout", "Function"];
+      const results = [];
+
+      // 🔎 1. فحص استخدام المعلمات المنعكسة داخل عناصر الصفحة
+      targets.forEach((param) => {
+        const nodes = document.querySelectorAll("*");
+        nodes.forEach((node) => {
+          dangerousSinks.forEach((sink) => {
+            try {
+              const value = node[sink];
+              if (typeof value === "string" && value.includes(param)) {
+                results.push({
+                  param,
+                  sink,
+                  tag: node.tagName,
+                  snippet: value.substring(0, 100)
+                });
+              }
+            } catch (_) {}
+          });
+        });
+      });
+
+      // 🔎 2. فحص داخل window.WIZ_global_data
+      const wiz = window.WIZ_global_data || {};
+      Object.entries(wiz).forEach(([key, value]) => {
+        targets.forEach((param) => {
+          if (typeof value === "string" && value.includes(param)) {
+            results.push({
+              param,
+              sink: "WIZ_global_data",
+              key,
+              snippet: value.substring(0, 100)
+            });
+          }
+        });
+      });
+
+      // ⏱️ 3. محاولة التنفيذ التلقائي الآمن
+      try {
+        if (tl && /alert|console|XSS/i.test(tl)) {
+          setTimeout(() => {
+            new Function(decodeURIComponent(tl))();
+            console.log("✅ XSS Payload Executed from tl param");
+          }, 500);
+        }
+      } catch (_) {
+        console.warn("❌ Execution failed.");
+      }
+
+      // 📋 4. عرض النتائج
+      if (results.length > 0) {
+        console.table(results);
+      } else {
+        console.log("❌ No dangerous sinks found.");
+      }
+
+      // 🧾 توقيع ووقت
+      const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(results)));
+      const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log("🧾 Report Hash:", hex);
+
+    })();
   </script>
 </body>
 </html>
+
